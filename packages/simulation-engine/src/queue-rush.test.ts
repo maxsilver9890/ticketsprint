@@ -46,6 +46,28 @@ describe("Queue Rush simulation", () => {
       queueRushRules.EASY.botIntervalMs,
     );
   });
+  it("makes hard mode more competitive than medium during seat selection", () => {
+    const mediumStart = game("MEDIUM");
+    const hardStart = game("HARD");
+    const mediumAt =
+      mediumStart.createdAtMs +
+      mediumStart.botsAhead * mediumStart.queueStepMs +
+      20_000;
+    const hardAt =
+      hardStart.createdAtMs +
+      hardStart.botsAhead * hardStart.queueStepMs +
+      20_000;
+    const medium = advanceQueueRush(mediumStart, mediumAt);
+    const hard = advanceQueueRush(hardStart, hardAt);
+
+    expect(medium.stage).toBe("SEAT_SELECTION");
+    expect(hard.stage).toBe("SEAT_SELECTION");
+    expect(hard.claimedSeatIds.length).toBeGreaterThan(
+      medium.claimedSeatIds.length,
+    );
+    expect(hard.playWindowMs).toBeLessThan(mediumStart.playWindowMs);
+    expect(hard.holdDurationMs).toBeLessThan(mediumStart.holdDurationMs);
+  });
   it.each(["EASY", "MEDIUM", "HARD"] as const)(
     "%s bots keep claiming seats across the active sale instead of exhausting a one-shot schedule early",
     (difficulty) => {

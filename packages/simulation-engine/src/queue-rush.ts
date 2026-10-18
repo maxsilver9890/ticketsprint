@@ -155,15 +155,15 @@ export const queueRushRules: Record<
   HARD: {
     botsAhead: 9,
     queueStepMs: 600,
-    botCount: 82,
+    botCount: 88,
     firstClaimMs: 150,
-    // Spread Hard's 82 deterministic bot arrivals across roughly the full sale
-    // window instead of draining their one-shot schedule in the first 8s.
-    botIntervalMs: 400,
+    // Keep the larger bot wave active across the sale while increasing the
+    // rate of competition compared with the previous Hard tuning.
+    botIntervalMs: 375,
     minClaim: 2,
     maxClaim: 3,
-    playWindowMs: 30_000,
-    holdDurationMs: 8_000,
+    playWindowMs: 28_000,
+    holdDurationMs: 7_000,
   },
 };
 
