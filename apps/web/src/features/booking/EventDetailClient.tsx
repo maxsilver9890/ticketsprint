@@ -7,7 +7,7 @@ import type {
   QueueRushDrop,
 } from "@ticketsprint/contracts/queue-rush";
 import { queueApi } from "./queue-api";
-import { formatDuration } from "./api";
+import { formatDuration } from "./format-duration";
 import { useSessionBest } from "./SessionBest";
 
 export function EventDetailClient({ slug }: { slug: string }) {

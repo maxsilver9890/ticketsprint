@@ -7,6 +7,6 @@
     "noEmit": true,
     "types": ["node", "vitest/globals"]
   },
-  "include": ["src/**/*.ts", "prisma.config.ts", "prisma/**/*.ts"],
-  "exclude": ["node_modules", "src/generated"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules"]
 }

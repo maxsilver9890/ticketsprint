@@ -1,21 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { registerRequestSchema } from "./index.js";
-describe("shared auth contracts", () => {
-  it("normalizes email", () =>
+import { errorResponseSchema, liveHealthResponseSchema } from "./index.js";
+
+describe("shared API response contracts", () => {
+  it("validates live health responses", () => {
     expect(
-      registerRequestSchema.parse({
-        username: "sprint_user",
-        email: "USER@EXAMPLE.COM",
-        password: "a-secure-password",
-      }).email,
-    ).toBe("user@example.com"));
-  it("rejects weak password and extra fields", () =>
-    expect(
-      registerRequestSchema.safeParse({
-        username: "sprint_user",
-        email: "user@example.com",
-        password: "short",
-        userId: "client",
+      liveHealthResponseSchema.safeParse({
+        status: "ok",
+        service: "ticketsprint-api",
       }).success,
-    ).toBe(false));
+    ).toBe(true);
+  });
+
+  it("validates request-scoped API errors", () => {
+    expect(
+      errorResponseSchema.safeParse({
+        error: { code: "NOT_FOUND", message: "Not found", requestId: "id" },
+      }).success,
+    ).toBe(true);
+  });
 });

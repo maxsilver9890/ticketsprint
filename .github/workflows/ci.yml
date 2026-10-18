@@ -5,31 +5,11 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: ticketsprint
-          POSTGRES_PASSWORD: ticketsprint_local
-          POSTGRES_DB: ticketsprint
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U ticketsprint -d ticketsprint"
-          --health-interval 5s --health-timeout 5s --health-retries 10
-      redis:
-        image: redis:7-alpine
-        ports: ["6379:6379"]
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s --health-timeout 3s --health-retries 10
     env:
       NODE_ENV: test
       API_PORT: 4000
       WEB_ORIGIN: http://localhost:3000
       NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
-      DATABASE_URL: postgresql://ticketsprint:ticketsprint_local@localhost:5432/ticketsprint?schema=public
-      REDIS_URL: redis://localhost:6379
-      JWT_SECRET: ci-only-secret-change-before-production-000000000
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -37,9 +17,6 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 24, cache: pnpm }
       - run: pnpm install --frozen-lockfile
-      - run: pnpm db:generate
-      - run: pnpm db:migrate:deploy
-      - run: pnpm db:seed
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm lint
       - run: pnpm typecheck

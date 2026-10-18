@@ -2,20 +2,14 @@
   "name": "ticketsprint",
   "private": true,
   "packageManager": "pnpm@11.25.0",
-  "engines": {
-    "node": ">=24.11.0"
-  },
+  "engines": { "node": ">=24.11.0" },
   "scripts": {
     "dev": "pnpm --parallel --filter @ticketsprint/web --filter @ticketsprint/api dev",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "e2e": "playwright test",
-    "db:generate": "pnpm --filter @ticketsprint/api db:generate",
-    "db:migrate:dev": "pnpm --filter @ticketsprint/api db:migrate:dev",
-    "db:migrate:deploy": "pnpm --filter @ticketsprint/api db:migrate:deploy",
-    "db:seed": "pnpm --filter @ticketsprint/api db:seed"
+    "e2e": "playwright test"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",

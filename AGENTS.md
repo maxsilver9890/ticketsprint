@@ -1,38 +1,20 @@
+## Repository instructions
 
-# TicketSprint — Repository Instructions
-
-Before implementing any feature, read `TICKETSPRINT_SPEC.md` at the repository root.
-
-Treat it as the canonical product and architecture specification. Follow its requirements for the technology stack, database integrity, session lifecycle, scoring, leaderboard eligibility, security, testing, and deployment.
+Read `TICKETSPRINT_SPEC.md` before changing product behavior. Its Phase 2.5 section defines the active TicketSprint scope: anonymous, single-player Queue Rush gameplay with ephemeral state and mock payment.
 
 ## Engineering rules
 
-- Use TypeScript with strict type checking.
-- Follow the pnpm monorepo structure defined in the specification.
-- Keep frontend, backend, shared contracts, scoring, and simulation logic appropriately separated.
-- Never trust client-submitted scores, user identities, or terminal outcomes.
-- Preserve transactional integrity and prevent duplicate session submissions.
-- Enforce server-side booking deadlines and terminal-state transitions.
-- Keep SOLD_OUT and EXPIRED attempts out of successful-booking rankings.
-- Add tests for new functionality and regressions.
-- Use Prisma migrations for database schema changes.
-- Never fabricate test results, benchmark results, or deployment status.
-- Do not introduce unnecessary dependencies or infrastructure.
-- Inspect existing code before modifying it.
-- Do not overwrite working implementations without understanding their behavior.
-- Do not implement future phases prematurely unless explicitly requested.
-- Keep the project runnable and report any known failures honestly.
+- Use strict TypeScript and the existing pnpm workspace.
+- Keep queue, inventory, bot, seat-hold, deadline, checkout, and terminal-state rules authoritative in the simulation engine/API.
+- Preserve deterministic seeded bot behavior and event ordering.
+- Keep rate limits, validation, error handling, and shared Queue Rush contracts.
+- Do not add accounts, persistent booking/scoring, PostgreSQL, Redis, real payments, or later-phase features without explicit authorization.
+- Add focused tests for behavior changes. Never claim checks passed unless executed.
+- Do not reset databases, delete data, commit, or push unless explicitly requested.
 
 ## Workflow
 
-For each requested phase:
-
-1. Read the relevant specification sections.
-2. Inspect the existing implementation and identify dependencies.
-3. Make a concise implementation plan.
-4. Implement the requested phase.
-5. Run relevant type checks, linting, tests, migrations, and builds.
-6. Fix regressions introduced by the changes.
-7. Report changed files, commands executed, verified results, unresolved issues, and the next recommended step.
-
-Implement in small, reviewable increments. The specification defines the intended behavior; actual code and tests must demonstrate that the behavior works.
+1. Inspect repository status and relevant code before editing.
+2. Make the smallest coherent changes for the active product.
+3. Run relevant lint, typecheck, unit/integration, E2E, and build checks where feasible.
+4. Report changed files, actual results, warnings, environment limits, and remaining risks.

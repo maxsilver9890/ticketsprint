@@ -5,7 +5,6 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./booking": "./src/booking.ts",
     "./queue-rush": "./src/queue-rush.ts"
   },
   "scripts": {

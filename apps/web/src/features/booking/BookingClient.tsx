@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { QueueRushGameView } from "@ticketsprint/contracts/queue-rush";
 import { queueApi } from "./queue-api";
-import { formatDuration } from "./api";
+import { formatDuration } from "./format-duration";
 
 export function BookingClient({ sessionId }: { sessionId: string }) {
   const router = useRouter();

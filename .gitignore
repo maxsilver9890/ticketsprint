@@ -10,7 +10,6 @@ test-results/
 .env
 .env.*
 !.env.example
-apps/api/src/generated/
 *.log
 .phase1-postgres-data/
 *.tsbuildinfo
