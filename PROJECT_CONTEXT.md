@@ -109,6 +109,10 @@ Re-ran `corepack pnpm install --frozen-lockfile`, `corepack pnpm lint`, `corepac
 
 The current product's active API and UI remain memory-only, anonymous, and mock-payment-only. Legacy auth/Prisma/PostgreSQL/Redis paths and migrations remain because the repository's API tests/CI still exercise those paths and an applied migration history plus local records exist; the configured database and its previously recorded `phase2-*` data were left untouched. A proposed bulk removal of those modules was rejected by automatic approval review due to regression/migration-history loss risk; no workaround or smaller split deletion was attempted. This leaves subsystem/dependency cleanup unresolved. At the time this audit snapshot was recorded, no commit or push had been made. Phases 3–5 remain unimplemented.
 
+## Delivery status — 2026-10-18
+
+The verified Queue Rush implementation was committed as `1abc52750b8e4a261c26fae46e3e0d5df56c2056` (`feat: deliver TicketSprint queue rush game`) and pushed to `origin/main`; a post-push `git ls-remote` confirmed the remote ref. This note is a later documentation sync; use `git log -1` and `git status` for the current tip and worktree. Legacy code cleanup remains deferred as documented above; no database contents were cleaned or reset.
+
 For E2E without disturbing an existing local Next server, build/start with an isolated output and ports, for example:
 
 ```powershell
