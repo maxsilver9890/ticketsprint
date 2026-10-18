@@ -52,30 +52,35 @@ export function ArenaClient() {
       )}
       <div className="scenario-grid">
         {drops.map((drop) => (
-          <article className="event-card" key={drop.slug}>
-            <div className={`queue-drop-art theme-${drop.theme}`}>
-              <span>TICKETSPRINT / PRACTICE DROP</span>
-              <strong>{drop.artist}</strong>
-              <small>
-                {drop.venue} · {drop.location}
-              </small>
-            </div>
-            <div className="event-card-body">
-              <p className="event-artist">
-                {drop.date} · {drop.doors}
-              </p>
-              <h2>
-                <Link href={`/events/${drop.slug}`}>{drop.title}</Link>
-              </h2>
-              <p>{drop.description}</p>
-              <div className="event-card-foot">
-                <span>216 virtual seats · bots compete live</span>
-                <Link className="text-link" href={`/events/${drop.slug}`}>
-                  View drop ↗
-                </Link>
+          <Link
+            className="event-card-link"
+            href={`/events/${drop.slug}`}
+            aria-label={drop.title}
+            key={drop.slug}
+          >
+            <article className="event-card">
+              <div className={`queue-drop-art theme-${drop.theme}`}>
+                <span>TICKETSPRINT / PRACTICE DROP</span>
+                <strong>{drop.artist}</strong>
+                <small>
+                  {drop.venue} · {drop.location}
+                </small>
               </div>
-            </div>
-          </article>
+              <div className="event-card-body">
+                <p className="event-artist">
+                  {drop.date} · {drop.doors}
+                </p>
+                <h2>{drop.title}</h2>
+                <p>{drop.description}</p>
+                <div className="event-card-foot">
+                  <span>216 virtual seats · bots compete live</span>
+                  <span className="text-link" aria-hidden="true">
+                    View drop ↗
+                  </span>
+                </div>
+              </div>
+            </article>
+          </Link>
         ))}
       </div>
       <p className="arena-footnote">

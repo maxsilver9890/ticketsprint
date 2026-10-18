@@ -1,5 +1,15 @@
 import { expect, test } from "@playwright/test";
 
+test("clicking anywhere on a practice drop card opens its event details", async ({ page }) => {
+ await page.goto("/arena");
+ const card=page.locator(".event-card-link").filter({hasText:"Stadium Opening Night"});
+ await expect(card).toHaveAttribute("href","/events/stadium-opening");
+ await expect(card.locator("a")).toHaveCount(0);
+ await card.locator(".event-card").click({position:{x:18,y:180}});
+ await expect(page).toHaveURL(/\/events\/stadium-opening$/);
+ await expect(page.getByRole("button",{name:/Join the queue/})).toBeVisible();
+});
+
 test("anonymous player queues, selects seats, mocks payment, and sees result", async ({page}) => {
  await page.goto("/");
  await expect(page.getByRole("link",{name:/Create account|Sign in/})).toHaveCount(0);
