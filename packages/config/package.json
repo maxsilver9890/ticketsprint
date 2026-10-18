@@ -4,10 +4,14 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./env": "./src/env.ts"
+    "./env": {
+      "development": "./src/env.ts",
+      "types": "./src/env.ts",
+      "import": "./dist/env.js"
+    }
   },
   "scripts": {
-    "build": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

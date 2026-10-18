@@ -25,7 +25,7 @@ Open http://localhost:3000. API health: http://localhost:4000/api/v1/health/live
 
 Create a Node Web Service with the repository root as its working directory so pnpm can resolve shared workspace packages.
 
-- **Build Command:** `corepack pnpm install --frozen-lockfile && corepack pnpm --filter @ticketsprint/api build`
+- **Build Command:** `corepack pnpm install --frozen-lockfile && corepack pnpm --filter @ticketsprint/api... build`
 - **Start Command:** `corepack pnpm --filter @ticketsprint/api start`
 - Set `NODE_VERSION=24.21.0` and `WEB_ORIGIN=https://ticketsprint-omega.vercel.app`.
 - Render supplies `PORT`; the server binds `0.0.0.0` and falls back to local `API_PORT` only when no `PORT` is supplied.
