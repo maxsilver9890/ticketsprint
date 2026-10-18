@@ -111,7 +111,11 @@ The current product's active API and UI remain memory-only, anonymous, and mock-
 
 ## Delivery status — 2026-10-18
 
-The verified Queue Rush implementation was committed as `1abc52750b8e4a261c26fae46e3e0d5df56c2056` (`feat: deliver TicketSprint queue rush game`) and pushed to `origin/main`; a post-push `git ls-remote` confirmed the remote ref. This note is a later documentation sync; use `git log -1` and `git status` for the current tip and worktree. Legacy code cleanup remains deferred as documented above; no database contents were cleaned or reset.
+The verified Queue Rush implementation was committed as `1abc52750b8e4a261c26fae46e3e0d5df56c2056` (`feat: deliver TicketSprint queue rush game`) and pushed to `origin/main`; a post-push `git ls-remote` confirmed the remote ref. A later documentation-only commit `12d158d65ab1df0cc318fd35ff2bfa8ee95db5a5` recorded that delivery. Follow-up gameplay work may add later commits; use `git log -1` and `git status` for the current tip and worktree. Legacy code cleanup remains deferred as documented above; no database contents were cleaned or reset.
+
+After the delivery, a user reported that Hard runs remained on the queue until loss. The cause was a 12.6-second admission delay versus faster bot inventory exhaustion. Hard now advances its 9-place queue every 600 ms (5.4 seconds total) and bots claim 2–3 seats every 100 ms, preserving high pressure while admitting the player with inventory remaining under the normal deterministic schedule. The queue UI now says how many bots are still ahead. A synthetic overload test preserves coverage for pre-admission sellout; API and browser regressions assert normal Hard admission to the seat map.
+
+This follow-up was verified with the simulation-engine suite (28 passed), focused Queue Rush API integration suite (5 passed), `corepack pnpm typecheck`, `corepack pnpm build`, and the full Playwright suite (6 desktop/mobile cases passed). Build and E2E used ignored `.next-audit` output and ports 4477/3337. The API now opens the seat-selection map automatically after queue admission; there is no separate manual enter button.
 
 For E2E without disturbing an existing local Next server, build/start with an isolated output and ports, for example:
 

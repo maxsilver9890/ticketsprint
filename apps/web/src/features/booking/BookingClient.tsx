@@ -165,7 +165,7 @@ export function BookingClient({ sessionId }: { sessionId: string }) {
             <span style={{ width: `${game.queue.progressPercent}%` }} />
           </div>
           <div className="queue-facts">
-            <span>{game.queue.position - 1} bots admitted ahead</span>
+            <span>{game.queue.position - 1} bots ahead of you</span>
             <span>
               {game.botClaims} sold · {game.queue.inventoryRemaining} seats left
             </span>

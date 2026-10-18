@@ -63,16 +63,34 @@ describe("Queue Rush simulation", () => {
     expect(view.botClaims).toBeGreaterThan(0);
     expect(view.queue.inventoryRemaining).toBeLessThan(g.seats.length);
   });
-  it("can exhaust inventory before the hard queue admits the player", () => {
+  it("admits the hard queue while seats remain under its normal bot schedule", () => {
     const g = game("HARD");
     const admissionAt = g.createdAtMs + g.botsAhead * g.queueStepMs;
-    const lost = advanceQueueRush(g, admissionAt - 1);
+    const admitted = advanceQueueRush(g, admissionAt);
+    expect(admitted.stage).toBe("SEAT_SELECTION");
+    expect(admitted.admittedAtMs).toBe(admissionAt);
+    expect(admitted.claimedSeatIds.length).toBeGreaterThan(0);
+    expect(admitted.claimedSeatIds.length).toBeLessThan(g.seats.length);
+  });
+  it("can still exhaust inventory before admission in an extreme deterministic queue", () => {
+    const initial = game("HARD");
+    const eventAtAdmission = initial.botsAhead * initial.queueStepMs;
+    const overloaded = {
+      ...initial,
+      botSchedule: initial.botSchedule.map((event, index) => ({
+        ...event,
+        atMs: index * 100,
+        seatsToClaim: 4,
+        preferences: initial.seats.map((seat) => seat.id),
+      })),
+    };
+    const lost = advanceQueueRush(
+      overloaded,
+      initial.createdAtMs + eventAtAdmission - 1,
+    );
     expect(lost.stage).toBe("LOST");
     expect(lost.admittedAtMs).toBeNull();
     expect(lost.failureReason).toBe("INVENTORY_EXHAUSTED");
-    const view = queueRushGameView(lost, admissionAt);
-    expect(view.queue.saleStatus).toBe("SOLD_OUT");
-    expect(view.queue.inventoryRemaining).toBe(0);
   });
   it("holds seats atomically, releases on abandon, then wins only once", () => {
     const g = advanceQueueRush(
@@ -169,14 +187,5 @@ describe("Queue Rush simulation", () => {
     expect(result.game.stage).toBe("LOST");
     expect(result.game.failureReason).toBe("TIME_LIMIT");
     expect(result.game.paymentOutcome).toBeNull();
-  });
-  it("ends the hard run when deterministic bots exhaust the inventory", () => {
-    const g = advanceQueueRush(
-      game("HARD"),
-      1000 + queueRushRules.HARD.botsAhead * queueRushRules.HARD.queueStepMs,
-    );
-    const lost = advanceQueueRush(g, g.admittedAtMs! + g.playWindowMs);
-    expect(lost.stage).toBe("LOST");
-    expect(lost.failureReason).toBe("INVENTORY_EXHAUSTED");
   });
 });

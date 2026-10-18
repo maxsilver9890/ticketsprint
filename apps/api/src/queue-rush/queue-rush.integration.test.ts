@@ -78,7 +78,7 @@ describe("Queue Rush HTTP flow", () => {
       .send({ seatIds: ["FL-A01"] })
       .expect(409);
   });
-  it("runs bot inventory events during the queue and can sell out before admission", async () => {
+  it("runs bot inventory events during the queue and admits hard difficulty to seats", async () => {
     let now = 1000;
     const app = createQueueRushApp(
       new QueueRushService({ now: () => now, seed: () => "repeatable" }),
@@ -94,13 +94,13 @@ describe("Queue Rush HTTP flow", () => {
     expect(waiting.body.game.stage).toBe("QUEUING");
     expect(waiting.body.game.queue.elapsedMs).toBe(2_000);
     expect(waiting.body.game.botClaims).toBeGreaterThan(0);
-    now = 1000 + 9 * 1400 - 1;
-    const lost = await request(app)
+    now = 1000 + 9 * 600;
+    const admitted = await request(app)
       .get(`/api/v1/games/${created.body.game.id}`)
       .expect(200);
-    expect(lost.body.game.stage).toBe("LOST");
-    expect(lost.body.game.failureReason).toBe("INVENTORY_EXHAUSTED");
-    expect(lost.body.game.timing.queueMs).toBeNull();
+    expect(admitted.body.game.stage).toBe("SEAT_SELECTION");
+    expect(admitted.body.game.timing.queueMs).toBe(9 * 600);
+    expect(admitted.body.game.queue.inventoryRemaining).toBeGreaterThan(0);
   });
   it("atomically gives a contested seat to only one hold request", async () => {
     let now = 1000;

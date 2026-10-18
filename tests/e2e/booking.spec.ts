@@ -28,18 +28,13 @@ test("anonymous player queues, selects seats, mocks payment, and sees result", a
  await expect(page.getByText(/Your best this page session:/)).toBeVisible();
 });
 
-test("hard queue can sell out before admission and the retry gets a fresh run",async({page})=>{
+test("hard queue admits the player to the seat map",async({page})=>{
  await page.goto("/arena");
  await page.getByRole("link",{name:"Stadium Opening Night"}).click();
  await page.getByLabel("HARD").check();
  await page.getByRole("button",{name:/Join the queue/}).click();
- await expect(page).toHaveURL(/\/results\/[0-9a-f-]+$/, {timeout:20_000});
- await expect(page.getByRole("heading",{name:"The rush got away."})).toBeVisible();
- await expect(page.getByText(/Virtual inventory was exhausted/)).toBeVisible();
- const firstRun=page.url().split("/").at(-1);
- await page.getByRole("button",{name:"Retry this drop"}).click();
- await expect(page).toHaveURL(/\/practice\/booking\/[0-9a-f-]+$/);
- expect(page.url().split("/").at(-1)).not.toBe(firstRun);
+ await expect(page.getByRole("heading",{name:/Choose up to four seats/})).toBeVisible({timeout:12_000});
+ await expect(page.getByRole("button",{name:/AVAILABLE/}).first()).toBeEnabled();
 });
 
 test("arena and seat map fit the selected viewport",async({page},testInfo)=>{
