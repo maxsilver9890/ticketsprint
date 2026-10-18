@@ -1,6 +1,15 @@
 import { randomUUID } from "node:crypto";
 import type { ErrorRequestHandler, RequestHandler } from "express";
 import { ZodError } from "zod";
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string,
+    message: string,
+  ) {
+    super(message);
+  }
+}
 export const requestId: RequestHandler = (_req, res, next) => {
   const id = randomUUID();
   res.locals.requestId = id;
@@ -26,6 +35,12 @@ export const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
         message: "Request validation failed.",
         requestId: id,
       },
+    });
+    return;
+  }
+  if (error instanceof ApiError) {
+    res.status(error.status).json({
+      error: { code: error.code, message: error.message, requestId: id },
     });
     return;
   }

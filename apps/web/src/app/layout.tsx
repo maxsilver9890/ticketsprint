@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
+import { SiteNav } from "@/components/SiteNav";
+import { SessionBestProvider } from "@/features/booking/SessionBest";
 import "./globals.css";
 export const metadata: Metadata = {
-  title: "TicketSprint",
-  description: "Practice simulated high-demand ticket booking.",
+  title: {
+    default: "TicketSprint — Live drop practice",
+    template: "%s | TicketSprint",
+  },
+  description:
+    "Rehearse high-demand ticket booking in a realistic, server-timed simulation.",
 };
 export default function RootLayout({
   children,
@@ -11,7 +17,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <SessionBestProvider>
+          <SiteNav />
+          {children}
+        </SessionBestProvider>
+      </body>
     </html>
   );
 }

@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./booking": "./src/booking.ts",
+    "./queue-rush": "./src/queue-rush.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",

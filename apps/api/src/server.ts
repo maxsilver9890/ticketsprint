@@ -1,34 +1,26 @@
-import { getApiEnv } from "@ticketsprint/config/env";
-import { prisma } from "./db.js";
-import { redis } from "./redis.js";
-import { createApp } from "./app.js";
-const env = getApiEnv();
-async function start() {
-  await prisma.$connect();
-  await redis.connect();
-  const server = createApp(prisma, redis).listen(env.API_PORT, "0.0.0.0", () =>
+import dotenv from "dotenv";
+import { getQueueApiEnv } from "@ticketsprint/config/env";
+import { createQueueRushApp } from "./queue-rush-app.js";
+import { QueueRushService } from "./queue-rush/queue-rush.service.js";
+dotenv.config({ path: "../../.env" });
+const env = getQueueApiEnv();
+const queueRushService = new QueueRushService(
+  env.NODE_ENV === "test" ? { seed: () => "repeatable" } : {},
+);
+const server = createQueueRushApp(queueRushService).listen(
+  env.API_PORT,
+  "0.0.0.0",
+  () => {
     console.log(
       JSON.stringify({
         level: "info",
-        message: "API listening",
+        message: "Queue Rush API listening",
         port: env.API_PORT,
+        state: "process-memory",
       }),
-    ),
-  );
-  const shutdown = async () => {
-    server.close();
-    await Promise.allSettled([prisma.$disconnect(), redis.quit()]);
-  };
-  process.once("SIGINT", () => void shutdown());
-  process.once("SIGTERM", () => void shutdown());
-}
-start().catch((error: unknown) => {
-  console.error(
-    JSON.stringify({
-      level: "fatal",
-      message: "API startup failed",
-      errorType: error instanceof Error ? error.name : "UnknownError",
-    }),
-  );
-  process.exitCode = 1;
-});
+    );
+  },
+);
+const shutdown = () => server.close();
+process.once("SIGINT", shutdown);
+process.once("SIGTERM", shutdown);

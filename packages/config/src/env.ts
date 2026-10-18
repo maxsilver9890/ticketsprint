@@ -26,3 +26,13 @@ export function getWebEnv(source: NodeJS.ProcessEnv = process.env) {
 export function validateApiEnv(source: NodeJS.ProcessEnv = process.env) {
   return apiSchema.safeParse(source);
 }
+
+const queueApiSchema = z.object({
+  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  API_PORT: z.coerce.number().int().min(1).max(65535).default(4000),
+  WEB_ORIGIN: z.url().default("http://localhost:3000"),
+});
+export type QueueApiEnv = z.infer<typeof queueApiSchema>;
+export function getQueueApiEnv(source: NodeJS.ProcessEnv = process.env) {
+  return queueApiSchema.parse(source);
+}

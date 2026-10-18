@@ -48,3 +48,15 @@ export const healthResponseSchema = z.object({
 export type RegisterRequest = z.infer<typeof registerRequestSchema>;
 export type LoginRequest = z.infer<typeof loginRequestSchema>;
 export type UserResponse = z.infer<typeof userResponseSchema>;
+export {
+  bookingActionSchema,
+  bookingScenarioConfigSchema,
+  bookingScenarioTypeSchema,
+  createSessionRequestSchema,
+  publicBookingConfigSchema,
+  sessionResponseSchema,
+  attemptResponseSchema,
+  type BookingAction,
+  type BookingScenarioConfig,
+  type PublicBookingConfig,
+} from "./booking.js";

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 type AuthFormProps = { mode: "login" | "register" };
 type ApiError = { error?: { message?: string } };
@@ -9,6 +10,21 @@ const apiBase =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
 
 export function AuthForm({ mode }: AuthFormProps) {
+  const router = useRouter();
+  useEffect(() => {
+    let active = true;
+    void fetch(`${apiBase}/auth/me`, {
+      credentials: "include",
+      cache: "no-store",
+    })
+      .then((response) => {
+        if (active && response.ok) router.replace("/arena");
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [router]);
   const [error, setError] = useState<string>();
   const [message, setMessage] = useState<string>();
   const [pending, setPending] = useState(false);
@@ -60,6 +76,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         "You’re signed in. Your account is ready for practice challenges.",
       );
       formElement.reset();
+      router.replace("/arena");
     } catch (cause) {
       setError(
         cause instanceof Error ? cause.message : "A network error occurred.",
@@ -137,6 +154,8 @@ export function AuthForm({ mode }: AuthFormProps) {
         {message && (
           <p className="text-sm text-emerald-300" role="status">
             {message}
+            {" "}
+            <Link className="font-semibold underline-offset-4 hover:underline" href="/arena">Choose a practice drop</Link>
           </p>
         )}
         <button

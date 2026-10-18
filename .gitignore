@@ -1,8 +1,12 @@
 node_modules/
 .pnpm-store/
 .next/
+.next-e2e/
+.next-audit/
 dist/
 coverage/
+playwright-report/
+test-results/
 .env
 .env.*
 !.env.example

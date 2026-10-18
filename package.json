@@ -11,14 +11,16 @@
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
+    "e2e": "playwright test",
     "db:generate": "pnpm --filter @ticketsprint/api db:generate",
     "db:migrate:dev": "pnpm --filter @ticketsprint/api db:migrate:dev",
     "db:migrate:deploy": "pnpm --filter @ticketsprint/api db:migrate:deploy",
     "db:seed": "pnpm --filter @ticketsprint/api db:seed"
   },
   "devDependencies": {
-    "@eslint/js": "^9.38.0",
     "@eslint/eslintrc": "^3.3.1",
+    "@eslint/js": "^9.38.0",
+    "@playwright/test": "^1.64.1",
     "eslint": "^9.38.0",
     "prettier": "^3.6.2",
     "typescript": "^5.9.3",

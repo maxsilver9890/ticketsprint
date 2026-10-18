@@ -1,37 +1,52 @@
 # TicketSprint
 
-Phase 1 foundation for simulated ticket-booking practice. Booking simulation, scoring, leaderboards, and challenge flows are deferred.
+TicketSprint is an anonymous practice game for simulated high-demand ticket drops. The active Phase 2.5 flow is **Play → Queue → Seat Selection → Mock Payment → Win/Lose → Retry**. There are no accounts, real tickets, or real payment processing in the active product.
 
-## Requirements
+## Stack and runtime
 
-Node.js 24.11+, pnpm 11.25.0, and Docker Compose.
+- pnpm workspace, strict TypeScript, Next.js App Router / React / Tailwind, Express, Zod, and the shared `packages/simulation-engine`.
+- The active API stores ephemeral game sessions in process memory. PostgreSQL, Prisma, and Redis modules and migrations remain in the repository for earlier phase work; they are not required to run the current game, and the API does not connect to them.
+- A server-generated per-game seed drives deterministic virtual buyer timing and seat preferences. Server state owns inventory, queue admission, deadlines, seat holds, mock payment confirmation, and terminal outcomes. Restarting the API clears games. The “session best” is held in React memory only and resets on a full page reload.
 
 ## Local setup
 
-```sh
-corepack enable
-pnpm install
-cp .env.example .env
-docker compose up -d postgres redis
-pnpm db:generate
-pnpm db:migrate:dev
-pnpm db:seed
-pnpm dev
+Requirements: Node.js 24.11+ and pnpm 11.25. No Docker/database setup or `.env` credentials are required for the current gameplay. If you want to change ports with a root `.env`, create it only when it does not already exist:
+
+```powershell
+corepack pnpm install --frozen-lockfile
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+corepack pnpm dev
 ```
 
-Web: http://localhost:3000. API: http://localhost:4000. Liveness/readiness: `/api/v1/health/live` and `/api/v1/health/ready`. Set a random `JWT_SECRET` (at least 32 characters). `WEB_ORIGIN` is the exact allowed web origin. Stop services with `docker compose down`; `-v` removes persisted local data.
+You can also skip `.env` completely; the API defaults to port 4000 and the web origin to `http://localhost:3000`.
 
-## Checks
+Open http://localhost:3000. API health is http://localhost:4000/api/v1/health/live. `API_PORT`, `WEB_ORIGIN`, and `NEXT_PUBLIC_API_URL` can be set when changing local ports. The active API requires only `API_PORT` and `WEB_ORIGIN` (default `http://localhost:3000`); the browser uses `NEXT_PUBLIC_API_URL` (default `http://localhost:4000/api/v1`). The root `.env.example` still includes prior-phase database/auth settings; those are for legacy Prisma/DB paths and are not needed for active play.
 
-```sh
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm build
-pnpm db:generate
-pnpm db:migrate:dev
-pnpm db:migrate:deploy
-pnpm db:seed
+## Practice API
+
+All routes are under `/api/v1`:
+
+- `GET /drops` and `GET /drops/:slug` return fictional event drops.
+- `POST /games` creates a new seeded game with `dropSlug` and difficulty (`EASY`, `MEDIUM`, `HARD`).
+- `GET /games/:id` advances the deterministic simulation and returns the authoritative state.
+- `POST /games/:id/hold` atomically holds 1–4 available seats.
+- `POST /games/:id/hold/release` abandons checkout and releases the hold.
+- `POST /games/:id/pay` confirms the mock checkout once; repeat confirmations are idempotent.
+
+Bots run inside the simulation engine and are not HTTP clients. Event ties use deterministic ordering; bots claim seats before a same-time hold/deadline transition. Expired holds are released on the next state transition; stale payment requests cannot win. A retry creates a fresh game ID and seed. Game records are process-local and expire through bounded cleanup.
+
+## Verification
+
+```powershell
+corepack pnpm lint
+corepack pnpm typecheck
+corepack pnpm test
+corepack pnpm build
+corepack pnpm e2e
 ```
 
-API integration tests use PostgreSQL. Test mode uses an isolated in-memory limiter; development and production use Redis for shared rate limits. PostgreSQL is authoritative. Authentication uses Argon2id, short-lived signed JWTs in HTTP-only cookies, double-submit CSRF tokens, explicit CORS, and rate limiting. Refresh-token rotation is not implemented. The session and attempt tables are foundational only; simulator behavior is deferred. Production requires managed secrets, restricted DB credentials, HTTPS, backups, and controlled migrations.
+The E2E suite uses Playwright Chromium and mobile Chromium. Set `TEST_API_PORT`, `TEST_WEB_PORT`, and `NEXT_PUBLIC_API_URL` to matching values when using alternate ports. The `NEXT_PUBLIC_API_URL` value is embedded in the production bundle, so set it before `pnpm build` when using `TEST_WEB_MODE=start`. The `start` mode expects a fresh production build; otherwise Playwright starts Next dev. Legacy API integration tests still exercise the earlier Prisma/PostgreSQL application and require a dedicated migrated test database. Never point those tests at the configured local application database or valuable data.
+
+## Project status
+
+Phase 2.5 implements the queue rush game and anonymous active UI. Phase 3 scoring/leaderboards and Phase 4 Reflex Arena are not part of this implementation. `TICKETSPRINT_SPEC.md` remains the product requirements source; legacy phase specifications and DB support remain intact.

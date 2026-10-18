@@ -8,6 +8,7 @@ import type { PrismaClient } from "./generated/prisma/client.js";
 import type { RedisConnection } from "./redis.types.js";
 import { getApiEnv } from "@ticketsprint/config/env";
 import { createAuthRouter } from "./auth.routes.js";
+import { createBookingRouter } from "./booking/booking.routes.js";
 import { errorHandler, notFound, requestId } from "./errors.js";
 
 export function createApp(prisma: PrismaClient, redis: RedisConnection) {
@@ -58,6 +59,7 @@ export function createApp(prisma: PrismaClient, redis: RedisConnection) {
   });
 
   app.use("/api/v1/auth", createAuthRouter(prisma, redis));
+  app.use("/api/v1", createBookingRouter(prisma));
   app.use(notFound);
   app.use(errorHandler);
   return app;
