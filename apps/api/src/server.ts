@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import { getQueueApiEnv } from "@ticketsprint/config/env";
+import { getQueueApiEnv, resolveQueueApiPort } from "@ticketsprint/config/env";
 import { createQueueRushApp } from "./queue-rush-app.js";
 import { QueueRushService } from "./queue-rush/queue-rush.service.js";
 dotenv.config({ path: "../../.env" });
@@ -7,15 +7,16 @@ const env = getQueueApiEnv();
 const queueRushService = new QueueRushService(
   env.NODE_ENV === "test" ? { seed: () => "repeatable" } : {},
 );
+const port = resolveQueueApiPort(env);
 const server = createQueueRushApp(queueRushService).listen(
-  env.API_PORT,
+  port,
   "0.0.0.0",
   () => {
     console.log(
       JSON.stringify({
         level: "info",
         message: "Queue Rush API listening",
-        port: env.API_PORT,
+        port,
         state: "process-memory",
       }),
     );

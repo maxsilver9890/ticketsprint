@@ -250,3 +250,30 @@ describe("Queue Rush HTTP flow", () => {
     ).toBe("HELD");
   });
 });
+describe("Queue Rush CORS", () => {
+  it("allows only the configured frontend origin", async () => {
+    const originalOrigin = process.env.WEB_ORIGIN;
+    process.env.WEB_ORIGIN = "https://ticketsprint-omega.vercel.app";
+    try {
+      const app = createQueueRushApp(new QueueRushService({ seed: () => "cors" }));
+      const allowed = await request(app)
+        .get("/api/v1/health/live")
+        .set("Origin", "https://ticketsprint-omega.vercel.app")
+        .expect(200);
+      expect(allowed.headers["access-control-allow-origin"]).toBe(
+        "https://ticketsprint-omega.vercel.app",
+      );
+
+      const denied = await request(app)
+        .get("/api/v1/health/live")
+        .set("Origin", "https://example.invalid")
+        .expect(200);
+      expect(denied.headers["access-control-allow-origin"]).toBe(
+        "https://ticketsprint-omega.vercel.app",
+      );
+    } finally {
+      if (originalOrigin === undefined) delete process.env.WEB_ORIGIN;
+      else process.env.WEB_ORIGIN = originalOrigin;
+    }
+  });
+});

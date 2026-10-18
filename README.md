@@ -22,6 +22,19 @@ You can also skip `.env` completely; the API defaults to port 4000 and the web o
 
 Open http://localhost:3000. API health is http://localhost:4000/api/v1/health/live. `API_PORT`, `WEB_ORIGIN`, and `NEXT_PUBLIC_API_URL` can be set when changing local ports. The active API requires only `API_PORT` and `WEB_ORIGIN` (default `http://localhost:3000`); the browser uses `NEXT_PUBLIC_API_URL` (default `http://localhost:4000/api/v1`). The root `.env.example` still includes prior-phase database/auth settings; those are for legacy Prisma/DB paths and are not needed for active play.
 
+## Render API deployment
+
+Deploy `apps/api` as a Node Web Service with the repository root as its working directory so pnpm can resolve the shared workspace packages.
+
+- **Build Command:** `corepack pnpm install --frozen-lockfile && corepack pnpm --filter @ticketsprint/api build`
+- **Start Command:** `corepack pnpm --filter @ticketsprint/api start`
+- **Environment:** set `NODE_VERSION=24.21.0` and `WEB_ORIGIN=https://ticketsprint-omega.vercel.app`.
+- Render supplies `PORT` at runtime. The API validates and uses it before falling back to local `API_PORT` (default `4000`); do not set `PORT` manually.
+- Set the Vercel frontend's `NEXT_PUBLIC_API_URL` to `https://<your-render-service>.onrender.com/api/v1` with no trailing slash.
+- Keep the Render service at one instance: active game state is process-local. A restart or deploy can clear active games, as allowed by the ephemeral game design.
+
+Render requires the web service to listen on `0.0.0.0` and recommends using its `PORT` value. See the [Render web service port documentation](https://render.com/docs/web-services#port-binding).
+
 ## Practice API
 
 All routes are under `/api/v1`:
