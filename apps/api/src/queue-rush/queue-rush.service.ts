@@ -12,6 +12,7 @@ import {
   payQueueRush,
   queueRushDrops,
   queueRushGameView,
+  selectQueueRushSeats,
   QueueRushRuleError,
 } from "@ticketsprint/simulation-engine";
 
@@ -92,6 +93,12 @@ export class QueueRushService {
   hold(id: string, seatIds: string[]): QueueRushGameView {
     const { entry, nowMs } = this.advance(id);
     entry.game = holdQueueRushSeats(entry.game, seatIds, nowMs);
+    return queueRushGameSchema.parse(queueRushGameView(entry.game, nowMs));
+  }
+
+  select(id: string, seatIds: string[]): QueueRushGameView {
+    const { entry, nowMs } = this.advance(id);
+    entry.game = selectQueueRushSeats(entry.game, seatIds, nowMs);
     return queueRushGameSchema.parse(queueRushGameView(entry.game, nowMs));
   }
 

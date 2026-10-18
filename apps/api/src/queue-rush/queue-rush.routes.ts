@@ -3,6 +3,7 @@ import {
   createQueueRushGameSchema,
   emptyGameActionSchema,
   seatHoldRequestSchema,
+  seatSelectionRequestSchema,
 } from "@ticketsprint/contracts/queue-rush";
 import { ApiError } from "../errors.js";
 import { QueueRushRuleError } from "@ticketsprint/simulation-engine";
@@ -70,6 +71,18 @@ export function createQueueRushRouter(service: QueueRushService) {
     try {
       const input = seatHoldRequestSchema.parse(req.body);
       res.json({ game: service.hold(routeId(req), input.seatIds) });
+    } catch (error) {
+      try {
+        handleRuleError(error);
+      } catch (handled) {
+        next(handled);
+      }
+    }
+  });
+  router.post("/games/:id/selection", (req, res, next) => {
+    try {
+      const input = seatSelectionRequestSchema.parse(req.body);
+      res.json({ game: service.select(routeId(req), input.seatIds) });
     } catch (error) {
       try {
         handleRuleError(error);

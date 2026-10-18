@@ -53,6 +53,17 @@ export const seatHoldRequestSchema = z
     (value) => new Set(value.seatIds).size === value.seatIds.length,
     "Seat IDs must be unique.",
   );
+export const seatSelectionRequestSchema = z
+  .object({
+    seatIds: z
+      .array(z.string().regex(/^[A-Z]{1,3}-[A-H][0-9]{2}$/))
+      .max(4),
+  })
+  .strict()
+  .refine(
+    (value) => new Set(value.seatIds).size === value.seatIds.length,
+    "Seat IDs must be unique.",
+  );
 export const emptyGameActionSchema = z.object({}).strict();
 
 export const queueRushSeatSchema = z

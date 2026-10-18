@@ -135,7 +135,7 @@ export const queueRushRules: Record<
     queueStepMs: 1600,
     botCount: 22,
     firstClaimMs: 1000,
-    botIntervalMs: 1500,
+    botIntervalMs: 3000,
     minClaim: 1,
     maxClaim: 2,
     playWindowMs: 65_000,
@@ -146,7 +146,7 @@ export const queueRushRules: Record<
     queueStepMs: 1100,
     botCount: 44,
     firstClaimMs: 350,
-    botIntervalMs: 700,
+    botIntervalMs: 1100,
     minClaim: 1,
     maxClaim: 3,
     playWindowMs: 45_000,
@@ -157,7 +157,9 @@ export const queueRushRules: Record<
     queueStepMs: 600,
     botCount: 82,
     firstClaimMs: 150,
-    botIntervalMs: 100,
+    // Spread Hard's 82 deterministic bot arrivals across roughly the full sale
+    // window instead of draining their one-shot schedule in the first 8s.
+    botIntervalMs: 400,
     minClaim: 2,
     maxClaim: 3,
     playWindowMs: 30_000,
@@ -387,6 +389,37 @@ export function holdQueueRushSeats(
   seatIds: string[],
   nowMs: number,
 ): QueueRushGame {
+  const current = selectQueueRushSeats(game, seatIds, nowMs);
+  if (current.stage !== "SEAT_SELECTION" || current.admittedAtMs === null)
+    throw new QueueRushRuleError(
+      409,
+      "SEAT_SELECTION_CLOSED",
+      "Seat selection is not open for this game.",
+    );
+  if (current.selectedSeatIds.length === 0)
+    throw new QueueRushRuleError(
+      400,
+      "INVALID_SEAT_SELECTION",
+      "Choose between one and four different seats.",
+    );
+  return {
+    ...current,
+    stage: "CHECKOUT",
+    checkoutStartedAtMs: nowMs,
+    notice: null,
+  };
+}
+
+/**
+ * Update the player's desired seats while keeping every accepted seat held on
+ * the authoritative game. The first selection starts the hold clock; adding
+ * seats never silently renews it.
+ */
+export function selectQueueRushSeats(
+  game: QueueRushGame,
+  seatIds: string[],
+  nowMs: number,
+): QueueRushGame {
   const current = advanceQueueRush(game, nowMs);
   if (current.stage !== "SEAT_SELECTION" || current.admittedAtMs === null)
     throw new QueueRushRuleError(
@@ -394,15 +427,11 @@ export function holdQueueRushSeats(
       "SEAT_SELECTION_CLOSED",
       "Seat selection is not open for this game.",
     );
-  if (
-    seatIds.length < 1 ||
-    seatIds.length > 4 ||
-    new Set(seatIds).size !== seatIds.length
-  )
+  if (seatIds.length > 4 || new Set(seatIds).size !== seatIds.length)
     throw new QueueRushRuleError(
       400,
       "INVALID_SEAT_SELECTION",
-      "Choose between one and four different seats.",
+      "Choose up to four different seats.",
     );
   const validIds = new Set(current.seats.map((seat) => seat.id));
   if (seatIds.some((id) => !validIds.has(id)))
@@ -411,24 +440,50 @@ export function holdQueueRushSeats(
       "SEAT_UNAVAILABLE",
       "One or more selected seats are not in this venue.",
     );
-  if (seatIds.some((id) => current.claimedSeatIds.includes(id)))
+  const previouslyHeld = new Set(current.heldSeatIds);
+  if (
+    seatIds.some(
+      (id) =>
+        current.claimedSeatIds.includes(id) && !previouslyHeld.has(id),
+    )
+  )
     throw new QueueRushRuleError(
       409,
       "SEAT_UNAVAILABLE",
-      "A bot just claimed one of those seats. Pick again.",
+      "A bot just claimed one of those seats. Your active seat holds remain secured; choose another available seat.",
     );
+
+  if (seatIds.length === 0) {
+    return {
+      ...current,
+      selectedSeatIds: [],
+      heldSeatIds: [],
+      holdExpiresAtMs: null,
+      selectionMs: null,
+      notice: null,
+    };
+  }
+
   const rules = queueRushRules[current.difficulty];
-  return {
-    ...current,
-    stage: "CHECKOUT",
-    selectedSeatIds: [...seatIds],
-    heldSeatIds: [...seatIds],
-    holdExpiresAtMs: Math.min(
+  const holdExpiresAtMs =
+    current.holdExpiresAtMs ??
+    Math.min(
       nowMs + rules.holdDurationMs,
       current.admittedAtMs + current.playWindowMs,
-    ),
-    selectionMs: Math.max(0, nowMs - current.admittedAtMs),
-    checkoutStartedAtMs: nowMs,
+    );
+  if (holdExpiresAtMs <= nowMs)
+    throw new QueueRushRuleError(
+      409,
+      "HOLD_EXPIRED",
+      "Your seat hold expired. Choose available seats to continue.",
+    );
+  return {
+    ...current,
+    selectedSeatIds: [...seatIds],
+    heldSeatIds: [...seatIds],
+    holdExpiresAtMs,
+    selectionMs:
+      current.selectionMs ?? Math.max(0, nowMs - current.admittedAtMs),
     notice: null,
   };
 }

@@ -9,6 +9,7 @@ import {
   queueRushRules,
   abandonQueueRushCheckout,
   queueRushGameView,
+  selectQueueRushSeats,
 } from "./queue-rush.js";
 const game = (difficulty: "EASY" | "MEDIUM" | "HARD" = "MEDIUM") =>
   createQueueRushGame({
@@ -45,6 +46,22 @@ describe("Queue Rush simulation", () => {
       queueRushRules.EASY.botIntervalMs,
     );
   });
+  it.each(["EASY", "MEDIUM", "HARD"] as const)(
+    "%s bots keep claiming seats across the active sale instead of exhausting a one-shot schedule early",
+    (difficulty) => {
+      const initial = game(difficulty);
+      const admissionAt =
+        initial.createdAtMs + initial.botsAhead * initial.queueStepMs;
+      const early = advanceQueueRush(initial, admissionAt + 10_000);
+      const later = advanceQueueRush(initial, admissionAt + 20_000);
+      expect(early.nextBotIndex).toBeGreaterThan(0);
+      expect(later.nextBotIndex).toBeGreaterThan(early.nextBotIndex);
+      expect(later.claimedSeatIds.length).toBeGreaterThan(
+        early.claimedSeatIds.length,
+      );
+      expect(later.nextBotIndex).toBeLessThan(later.botSchedule.length);
+    },
+  );
   it("admits only after bots ahead and applies deterministic bot claims", () => {
     const g = game();
     expect(advanceQueueRush(g, 1000 + g.queueStepMs).stage).toBe("QUEUING");
@@ -110,6 +127,61 @@ describe("Queue Rush simulation", () => {
         .duplicate,
     ).toBe(true);
   });
+  it("holds each seat as it is added and preserves prior seats through checkout", () => {
+    const initial = game("EASY");
+    const admitted = advanceQueueRush(
+      initial,
+      initial.createdAtMs + initial.botsAhead * initial.queueStepMs,
+    );
+    const available = admitted.seats.filter(
+      (seat) => !admitted.claimedSeatIds.includes(seat.id),
+    );
+    const first = selectQueueRushSeats(admitted, [available[0]!.id], admitted.admittedAtMs!);
+    const firstHoldExpiry = first.holdExpiresAtMs;
+    const second = selectQueueRushSeats(
+      first,
+      [available[0]!.id, available[1]!.id],
+      admitted.admittedAtMs! + 100,
+    );
+    expect(second.stage).toBe("SEAT_SELECTION");
+    expect(second.heldSeatIds).toEqual([available[0]!.id, available[1]!.id]);
+    expect(second.holdExpiresAtMs).toBe(firstHoldExpiry);
+    const checkout = holdQueueRushSeats(
+      second,
+      second.selectedSeatIds,
+      admitted.admittedAtMs! + 200,
+    );
+    expect(checkout.stage).toBe("CHECKOUT");
+    expect(checkout.heldSeatIds).toEqual(second.heldSeatIds);
+    expect(payQueueRush(checkout, admitted.admittedAtMs! + 201).game.stage).toBe("WON");
+  });
+  it("keeps a held seat safe from bots and preserves existing holds on contention", () => {
+    const initial = game("EASY");
+    const admittedAt = initial.createdAtMs + initial.botsAhead * initial.queueStepMs;
+    const admitted = advanceQueueRush(initial, admittedAt);
+    const available = admitted.seats.filter(
+      (seat) => !admitted.claimedSeatIds.includes(seat.id),
+    );
+    const held = selectQueueRushSeats(admitted, [available[0]!.id], admittedAt);
+    const event = {
+      ...held.botSchedule[held.nextBotIndex]!,
+      atMs: admittedAt - held.createdAtMs + 100,
+      seatsToClaim: 1,
+      preferences: [available[0]!.id, available[1]!.id],
+    };
+    const scheduled = {
+      ...held,
+      botSchedule: [...held.botSchedule.slice(0, held.nextBotIndex), event],
+    };
+    const afterBot = advanceQueueRush(scheduled, admittedAt + 100);
+    expect(afterBot.heldSeatIds).toContain(available[0]!.id);
+    expect(afterBot.claimedSeatIds).not.toContain(available[0]!.id);
+    expect(afterBot.claimedSeatIds).toContain(available[1]!.id);
+    expect(() =>
+      selectQueueRushSeats(afterBot, [available[0]!.id, available[1]!.id], admittedAt + 100),
+    ).toThrow(/active seat holds remain secured/i);
+    expect(afterBot.heldSeatIds).toEqual([available[0]!.id]);
+  });
   it("releases an expired hold and rejects payment after expiration", () => {
     const g = advanceQueueRush(
       game("EASY"),
@@ -122,6 +194,20 @@ describe("Queue Rush simulation", () => {
     expect(expired.stage).toBe("SEAT_SELECTION");
     expect(() => payQueueRush(held, held.holdExpiresAtMs!)).toThrow();
   });
+  it("releases a seat-selection hold at its deadline so bots may claim it", () => {
+    const initial = game("EASY");
+    const admittedAt = initial.createdAtMs + initial.botsAhead * initial.queueStepMs;
+    const admitted = advanceQueueRush(initial, admittedAt);
+    const seat = admitted.seats.find(
+      (candidate) => !admitted.claimedSeatIds.includes(candidate.id),
+    )!.id;
+    const held = selectQueueRushSeats(admitted, [seat], admittedAt);
+    const expired = advanceQueueRush(held, held.holdExpiresAtMs!);
+    expect(expired.stage).toBe("SEAT_SELECTION");
+    expect(expired.heldSeatIds).toEqual([]);
+    expect(expired.selectedSeatIds).toEqual([]);
+    expect(expired.notice).toMatch(/hold expired/i);
+  });
   it.each(["expiry", "abandon"] as const)(
     "lets a later bot claim a seat released by %s",
     (releaseKind) => {
@@ -132,7 +218,10 @@ describe("Queue Rush simulation", () => {
       const seat = admitted.seats.find(
         (candidate) => !admitted.claimedSeatIds.includes(candidate.id),
       )!.id;
-      const held = holdQueueRushSeats(admitted, [seat], admittedAt);
+      const held =
+        releaseKind === "expiry"
+          ? selectQueueRushSeats(admitted, [seat], admittedAt)
+          : holdQueueRushSeats(admitted, [seat], admittedAt);
       const releaseAt =
         releaseKind === "expiry"
           ? held.holdExpiresAtMs!

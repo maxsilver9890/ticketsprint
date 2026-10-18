@@ -12,9 +12,27 @@ test("anonymous player queues, selects seats, mocks payment, and sees result", a
  await expect(page.getByRole("heading",{name:/Choose up to four seats/})).toBeVisible({timeout:15_000});
  const viewport=page.viewportSize()?.width??0;
  expect(await page.locator("body").evaluate(el=>el.scrollWidth)).toBeLessThanOrEqual(viewport+2);
- const available=page.getByRole("button",{name:/FL-A\d+ AVAILABLE/}).first();
+ const available=page.getByRole("button",{name:/AVAILABLE/}).first();
+ const firstSeat=await available.getAttribute("aria-label");
+ expect(firstSeat).toMatch(/AVAILABLE$/);
  await available.click();
- await page.getByRole("button",{name:/Hold 1 seat/}).click();
+ await expect(page.getByRole("button",{name:firstSeat!.replace("AVAILABLE","HELD")})).toBeEnabled();
+ const claimsBefore=await page.locator(".seat-map-heading .eyebrow").innerText();
+ await page.waitForTimeout(1_700);
+ await expect(page.locator(".seat-map-heading .eyebrow")).not.toHaveText(claimsBefore);
+ await expect(page.getByRole("button",{name:firstSeat!.replace("AVAILABLE","HELD")})).toHaveAttribute("aria-pressed","true");
+ const heldSeats=[firstSeat!.replace("AVAILABLE","HELD")];
+ for(let index=1;index<4;index+=1){
+  const next=page.getByRole("button",{name:/AVAILABLE/}).first();
+  const label=await next.getAttribute("aria-label");
+  expect(label).toMatch(/AVAILABLE$/);
+  await next.click();
+  const heldLabel=label!.replace("AVAILABLE","HELD");
+  await expect(page.getByRole("button",{name:heldLabel})).toHaveAttribute("aria-pressed","true");
+  heldSeats.push(heldLabel);
+ }
+ for(const label of heldSeats) await expect(page.getByRole("button",{name:label})).toHaveAttribute("aria-pressed","true");
+ await page.getByRole("button",{name:/Continue with 4 seats/}).click();
  await expect(page.getByText("Visa ···· 4242")).toBeVisible();
  await expect(page.getByRole("button",{name:"Pay Now"})).toBeVisible();
  await page.getByRole("button",{name:"Pay Now"}).click();

@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { QueueRushGameView } from "@ticketsprint/contracts/queue-rush";
 import { queueApi } from "./queue-api";
 import { formatDuration } from "./api";
@@ -11,31 +11,32 @@ export function BookingClient({ sessionId }: { sessionId: string }) {
   const [game, setGame] = useState<QueueRushGameView>();
   const [now, setNow] = useState(0);
   const [snapshotAt, setSnapshotAt] = useState(0);
-  const [selected, setSelected] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const pollingRef = useRef(false);
+  const requestVersionRef = useRef(0);
   const refresh = useCallback(async () => {
+    if (busyRef.current || pollingRef.current) return;
+    pollingRef.current = true;
+    const requestVersion = requestVersionRef.current;
     try {
       const v = await queueApi<{ game: QueueRushGameView }>(
         `/games/${sessionId}`,
       );
+      if (busyRef.current || requestVersion !== requestVersionRef.current)
+        return;
+      const receivedAt = Date.now();
       setGame(v.game);
-      setSnapshotAt(Date.now());
-      setNow(Date.now());
-      setSelected((current) =>
-        v.game.stage === "SEAT_SELECTION"
-          ? current.filter((id) =>
-              v.game.seats.some(
-                (seat) => seat.id === id && seat.state === "AVAILABLE",
-              ),
-            )
-          : v.game.selectedSeatIds,
-      );
-      setError("");
+      setSnapshotAt(receivedAt);
+      setNow(receivedAt);
       if (v.game.stage === "WON" || v.game.stage === "LOST")
         router.replace(`/results/${sessionId}`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Practice game unavailable");
+      if (!busyRef.current && requestVersion === requestVersionRef.current)
+        setError(e instanceof Error ? e.message : "Practice game unavailable");
+    } finally {
+      pollingRef.current = false;
     }
   }, [sessionId, router]);
   useEffect(() => {
@@ -48,7 +49,9 @@ export function BookingClient({ sessionId }: { sessionId: string }) {
       window.clearInterval(c);
     };
   }, [refresh]);
-  async function action(path: string, body: unknown = {}) {
+  const action = useCallback(async (path: string, body: unknown = {}) => {
+    busyRef.current = true;
+    requestVersionRef.current += 1;
     setBusy(true);
     setError("");
     try {
@@ -56,17 +59,20 @@ export function BookingClient({ sessionId }: { sessionId: string }) {
         method: "POST",
         body,
       });
+      const receivedAt = Date.now();
       setGame(v.game);
-      setSelected(v.game.selectedSeatIds);
+      setSnapshotAt(receivedAt);
+      setNow(receivedAt);
       if (v.game.stage === "WON" || v.game.stage === "LOST")
         router.replace(`/results/${sessionId}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Action failed");
-      void refresh();
     } finally {
+      busyRef.current = false;
       setBusy(false);
+      void refresh();
     }
-  }
+  }, [refresh, router, sessionId]);
   if (!game)
     return (
       <main className="page-shell">
@@ -78,18 +84,24 @@ export function BookingClient({ sessionId }: { sessionId: string }) {
   const endAt =
     game.stage === "CHECKOUT"
       ? game.timing.holdExpiresAtMs
+      : game.stage === "SEAT_SELECTION" &&
+          game.timing.holdExpiresAtMs !== null
+        ? game.timing.holdExpiresAtMs
       : game.timing.deadlineAtMs;
   const remaining = Math.max(0, endAt === null ? 0 : endAt - serverNowEstimate);
   const timerValue =
     game.stage === "QUEUING" ? game.queue.elapsedMs : remaining;
-  const toggle = (id: string) =>
-    setSelected((prev) =>
-      prev.includes(id)
-        ? prev.filter((x) => x !== id)
-        : prev.length < 4
-          ? [...prev, id]
-          : prev,
-    );
+  const toggle = (id: string) => {
+    if (busy) return;
+    const selected = game.selectedSeatIds;
+    const next = selected.includes(id)
+      ? selected.filter((seatId) => seatId !== id)
+      : selected.length < 4
+        ? [...selected, id]
+        : selected;
+    if (next !== selected)
+      void action(`/games/${sessionId}/selection`, { seatIds: next });
+  };
   const sections = [...new Set(game.seats.map((s) => s.sectionName))];
   return (
     <main className="page-shell booking-shell queue-game">
@@ -113,7 +125,7 @@ export function BookingClient({ sessionId }: { sessionId: string }) {
           <span>
             {game.stage === "QUEUING"
               ? "Queue elapsed"
-              : game.stage === "CHECKOUT"
+              : game.timing.holdExpiresAtMs !== null
                 ? "Seat hold"
                 : "Time remaining"}
           </span>
@@ -182,11 +194,15 @@ export function BookingClient({ sessionId }: { sessionId: string }) {
               <h2>
                 {game.stage === "CHECKOUT"
                   ? "Your seats are held."
-                  : "Choose up to four seats."}
+                  : game.selectedSeatIds.length > 0
+                    ? `${game.selectedSeatIds.length} seat${game.selectedSeatIds.length === 1 ? "" : "s"} secured.`
+                    : "Choose up to four seats."}
               </h2>
               <p className="muted">
-                Bots continue to claim seats while you choose. Tap available
-                seats to select them. Sold seats cannot be selected.
+                Selecting a seat reserves it on the server immediately. Your
+                hold countdown starts with the first seat; bots cannot claim
+                held seats. Tap another available seat to add it, or tap your
+                held seat again to release it.
               </p>
             </div>
             <div className="seat-legend">
@@ -221,9 +237,7 @@ export function BookingClient({ sessionId }: { sessionId: string }) {
                     {game.seats
                       .filter((s) => s.sectionName === section && s.row === row)
                       .map((seat) => {
-                        const chosen =
-                          selected.includes(seat.id) ||
-                          game.selectedSeatIds.includes(seat.id);
+                        const chosen = game.selectedSeatIds.includes(seat.id);
                         const state = seat.state.toLowerCase();
                         return (
                           <button
@@ -232,6 +246,7 @@ export function BookingClient({ sessionId }: { sessionId: string }) {
                             aria-label={`${seat.id} ${seat.state}`}
                             aria-pressed={chosen}
                             disabled={
+                              busy ||
                               game.stage === "CHECKOUT" ||
                               (seat.state !== "AVAILABLE" && !chosen)
                             }
@@ -250,14 +265,16 @@ export function BookingClient({ sessionId }: { sessionId: string }) {
           {game.stage === "SEAT_SELECTION" && (
             <button
               className="button button-primary"
-              disabled={busy || selected.length === 0}
+              disabled={busy || game.selectedSeatIds.length === 0}
               onClick={() =>
-                void action(`/games/${sessionId}/hold`, { seatIds: selected })
+                void action(`/games/${sessionId}/hold`, {
+                  seatIds: game.selectedSeatIds,
+                })
               }
             >
               {busy
-                ? "Holding seats…"
-                : `Hold ${selected.length || "your"} seat${selected.length === 1 ? "" : "s"} →`}
+                ? "Opening checkout…"
+                : `Continue with ${game.selectedSeatIds.length} seat${game.selectedSeatIds.length === 1 ? "" : "s"} →`}
             </button>
           )}
         </section>
