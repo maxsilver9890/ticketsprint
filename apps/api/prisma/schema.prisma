@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ScenarioMode {
+  BOOKING
+  REFLEX
+}
+
+enum SessionStatus {
+  ACTIVE
+  FINALIZED
+  EXPIRED
+}
+
+enum TerminalOutcome {
+  CONFIRMED
+  SOLD_OUT
+  EXPIRED
+  INVALIDATED
+}
+
+enum AttemptStatus {
+  VALID
+  FLAGGED
+  REJECTED
+}
+
+model User {
+  id           String            @id @default(uuid()) @db.Uuid
+  username     String            @unique @db.VarChar(24)
+  email        String            @unique @db.VarChar(254)
+  passwordHash String            @db.VarChar(255)
+  createdAt    DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime          @updatedAt @db.Timestamptz(6)
+  sessions     PracticeSession[]
+  attempts     Attempt[]
+
+  @@map("users")
+}
+
+model Scenario {
+  id        String            @id @default(uuid()) @db.Uuid
+  slug      String            @unique @db.VarChar(100)
+  title     String            @db.VarChar(160)
+  mode      ScenarioMode
+  isActive  Boolean           @default(true)
+  createdAt DateTime          @default(now()) @db.Timestamptz(6)
+  versions  ScenarioVersion[]
+
+  @@map("scenarios")
+}
+
+model ScenarioVersion {
+  id                String            @id @default(uuid()) @db.Uuid
+  scenarioId        String            @db.Uuid
+  version           Int
+  difficulty        String            @db.VarChar(32)
+  config            Json              @db.JsonB
+  configHash        String            @db.VarChar(64)
+  scoringVersion    String            @db.VarChar(32)
+  durationLimitMs   Int
+  bookingDeadlineMs Int?
+  createdAt         DateTime          @default(now()) @db.Timestamptz(6)
+  scenario          Scenario          @relation(fields: [scenarioId], references: [id], onDelete: Restrict)
+  sessions          PracticeSession[]
+  attempts          Attempt[]
+
+  @@unique([scenarioId, version])
+  @@index([scenarioId, createdAt])
+  @@map("scenario_versions")
+}
+
+model PracticeSession {
+  id                String           @id @default(uuid()) @db.Uuid
+  userId            String           @db.Uuid
+  scenarioVersionId String           @db.Uuid
+  seed              String           @db.VarChar(128)
+  status            SessionStatus    @default(ACTIVE)
+  startedAt         DateTime         @default(now()) @db.Timestamptz(6)
+  saleOpenedAt      DateTime?        @db.Timestamptz(6)
+  expiresAt         DateTime         @db.Timestamptz(6)
+  terminalAt        DateTime?        @db.Timestamptz(6)
+  terminalOutcome   TerminalOutcome?
+  completedAt       DateTime?        @db.Timestamptz(6)
+  user              User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  scenarioVersion   ScenarioVersion  @relation(fields: [scenarioVersionId], references: [id], onDelete: Restrict)
+  attempt           Attempt?
+
+  @@index([userId, status])
+  @@index([status, expiresAt])
+  @@map("practice_sessions")
+}
+
+model Attempt {
+  id                String          @id @default(uuid()) @db.Uuid
+  sessionId         String          @unique @db.Uuid
+  userId            String          @db.Uuid
+  scenarioVersionId String          @db.Uuid
+  status            AttemptStatus
+  outcome           TerminalOutcome
+  completionMs      Int?
+  medianReactionMs  Int?
+  accuracyBps       Int             @default(0)
+  errorCount        Int             @default(0)
+  score             Int             @default(0)
+  scoringVersion    String          @db.VarChar(32)
+  startedAt         DateTime        @db.Timestamptz(6)
+  completedAt       DateTime?       @db.Timestamptz(6)
+  createdAt         DateTime        @default(now()) @db.Timestamptz(6)
+  session           PracticeSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  user              User            @relation(fields: [userId], references: [id], onDelete: Restrict)
+  scenarioVersion   ScenarioVersion @relation(fields: [scenarioVersionId], references: [id], onDelete: Restrict)
+  events            AttemptEvent[]
+
+  @@index([scenarioVersionId, status, completionMs])
+  @@index([scenarioVersionId, status, score])
+  @@index([userId, createdAt])
+  @@map("attempts")
+}
+
+model AttemptEvent {
+  id             String   @id @default(uuid()) @db.Uuid
+  attemptId      String   @db.Uuid
+  sequenceNumber Int
+  eventType      String   @db.VarChar(64)
+  elapsedMs      Int
+  payload        Json     @db.JsonB
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  attempt        Attempt  @relation(fields: [attemptId], references: [id], onDelete: Restrict)
+
+  @@unique([attemptId, sequenceNumber])
+  @@index([attemptId, sequenceNumber])
+  @@map("attempt_events")
+}

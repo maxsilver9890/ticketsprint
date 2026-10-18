@@ -1,0 +1,23 @@
+{
+  "name": "@ticketsprint/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^4.1.11"
+  },
+  "devDependencies": {
+    "eslint": "^9.38.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  }
+}
