@@ -11,15 +11,59 @@ import {
   queueRushGameView,
   selectQueueRushSeats,
 } from "./queue-rush.js";
-const game = (difficulty: "EASY" | "MEDIUM" | "HARD" = "MEDIUM") =>
+const game = (
+  difficulty: "EASY" | "MEDIUM" | "HARD" = "MEDIUM",
+  mode: "OPEN" | "TARGET" = "OPEN",
+) =>
   createQueueRushGame({
     id: "g",
     dropSlug: "stadium-opening",
     difficulty,
+    mode,
     seed: "repeatable",
     nowMs: 1000,
   });
 describe("Queue Rush simulation", () => {
+  it("assigns two deterministic adjacent target seats in one row", () => {
+    const first = game("EASY", "TARGET");
+    const second = game("EASY", "TARGET");
+    expect(first.targetSeatIds).toHaveLength(2);
+    expect(first.targetSeatIds).toEqual(second.targetSeatIds);
+    const targets = first.targetSeatIds.map((id) => first.seats.find((seat) => seat.id === id)!);
+    expect(targets[0]!.sectionId).toBe(targets[1]!.sectionId);
+    expect(targets[0]!.row).toBe(targets[1]!.row);
+    expect(Math.abs(targets[0]!.number - targets[1]!.number)).toBe(1);
+  });
+  it("requires all assigned target seats and rejects other seats", () => {
+    const initial = game("EASY", "TARGET");
+    const admittedAt = initial.createdAtMs + initial.botsAhead * initial.queueStepMs;
+    const quiet = {
+      ...initial,
+      botSchedule: initial.botSchedule.map((event) => ({ ...event, atMs: 60_000 + event.atMs })),
+    };
+    const admitted = advanceQueueRush(quiet, admittedAt);
+    const outsideTarget = admitted.seats.find((seat) => !admitted.targetSeatIds.includes(seat.id))!.id;
+    expect(() => selectQueueRushSeats(admitted, [outsideTarget], admittedAt)).toThrow(/target mode/i);
+    expect(() => holdQueueRushSeats(admitted, [admitted.targetSeatIds[0]!], admittedAt)).toThrow(/both assigned/i);
+    const selected = selectQueueRushSeats(admitted, admitted.targetSeatIds, admittedAt);
+    expect(holdQueueRushSeats(selected, selected.targetSeatIds, admittedAt).stage).toBe("CHECKOUT");
+  });
+  it("loses target mode when a bot claims an assigned seat", () => {
+    const initial = game("EASY", "TARGET");
+    const admittedAt = initial.createdAtMs + initial.botsAhead * initial.queueStepMs;
+    const claimAt = admittedAt - initial.createdAtMs;
+    const event = {
+      ...initial.botSchedule[0]!,
+      atMs: claimAt,
+      seatsToClaim: 1,
+      preferences: [...initial.targetSeatIds, ...initial.seats.map((seat) => seat.id)],
+    };
+    const challenge = { ...initial, botSchedule: [event], nextBotIndex: 0 };
+    const lost = advanceQueueRush(challenge, admittedAt);
+    expect(lost.stage).toBe("LOST");
+    expect(lost.failureReason).toBe("TARGET_SEATS_CLAIMED");
+    expect(lost.terminalAtMs).toBe(admittedAt);
+  });
   it("reproduces bot timing and shuffled preferences for a seed", () => {
     const seats = createQueueRushSeats();
     expect(createBotClaimSchedule("x", seats, "HARD")).toEqual(

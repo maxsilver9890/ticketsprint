@@ -3,6 +3,7 @@ import {
   type QueueRushDifficulty,
   type QueueRushDrop,
   type QueueRushGameView,
+  type QueueRushMode,
 } from "@ticketsprint/contracts/queue-rush";
 
 export const queueRushDrops: QueueRushDrop[] = [
@@ -82,6 +83,8 @@ export type QueueRushGame = {
   id: string;
   drop: QueueRushDrop;
   difficulty: QueueRushDifficulty;
+  mode: QueueRushMode;
+  targetSeatIds: string[];
   seed: string;
   createdAtMs: number;
   stage: "QUEUING" | "SEAT_SELECTION" | "CHECKOUT" | "WON" | "LOST";
@@ -101,7 +104,11 @@ export type QueueRushGame = {
   selectionMs: number | null;
   checkoutStartedAtMs: number | null;
   terminalAtMs: number | null;
-  failureReason: "INVENTORY_EXHAUSTED" | "TIME_LIMIT" | null;
+  failureReason:
+    | "INVENTORY_EXHAUSTED"
+    | "TARGET_SEATS_CLAIMED"
+    | "TIME_LIMIT"
+    | null;
   paymentOutcome: "APPROVED" | null;
   notice: string | null;
 };
@@ -239,6 +246,7 @@ export function createQueueRushGame(input: {
   id: string;
   dropSlug: string;
   difficulty: QueueRushDifficulty;
+  mode?: QueueRushMode;
   seed: string;
   nowMs: number;
 }): QueueRushGame {
@@ -253,10 +261,27 @@ export function createQueueRushGame(input: {
     );
   const rules = queueRushRules[input.difficulty];
   const seats = createQueueRushSeats();
+  const random = seededRandom(`${input.seed}:target`);
+  const targetRows = shuffle(
+    [...new Set(seats.map((seat) => `${seat.sectionId}-${seat.row}`))],
+    random,
+  );
+  const [targetSectionId, targetRow] = targetRows[0]!.split("-");
+  const firstSeatNumber = 1 + Math.floor(random() * 11);
+  const targetSeatIds = seats
+    .filter(
+      (seat) =>
+        seat.sectionId === targetSectionId &&
+        seat.row === targetRow &&
+        (seat.number === firstSeatNumber || seat.number === firstSeatNumber + 1),
+    )
+    .map((seat) => seat.id);
   return {
     id: input.id,
     drop,
     difficulty: input.difficulty,
+    mode: input.mode ?? "OPEN",
+    targetSeatIds,
     seed: input.seed,
     createdAtMs: input.nowMs,
     stage: "QUEUING",
@@ -285,7 +310,10 @@ export function createQueueRushGame(input: {
 function lose(
   game: QueueRushGame,
   atMs: number,
-  failureReason: "INVENTORY_EXHAUSTED" | "TIME_LIMIT",
+  failureReason:
+    | "INVENTORY_EXHAUSTED"
+    | "TARGET_SEATS_CLAIMED"
+    | "TIME_LIMIT",
 ): QueueRushGame {
   return {
     ...game,
@@ -360,6 +388,11 @@ export function advanceQueueRush(
       }
       if (next.claimedSeatIds.length >= next.seats.length)
         return lose(next, eventAt, "INVENTORY_EXHAUSTED");
+      if (
+        next.mode === "TARGET" &&
+        next.targetSeatIds.some((id) => next.claimedSeatIds.includes(id))
+      )
+        return lose(next, eventAt, "TARGET_SEATS_CLAIMED");
       continue;
     }
     if (admitAt === eventAt) {
@@ -402,6 +435,15 @@ export function holdQueueRushSeats(
       "INVALID_SEAT_SELECTION",
       "Choose between one and four different seats.",
     );
+  if (
+    current.mode === "TARGET" &&
+    current.targetSeatIds.some((id) => !current.selectedSeatIds.includes(id))
+  )
+    throw new QueueRushRuleError(
+      409,
+      "TARGET_SEATS_REQUIRED",
+      "Select both assigned target seats to enter checkout.",
+    );
   return {
     ...current,
     stage: "CHECKOUT",
@@ -439,6 +481,15 @@ export function selectQueueRushSeats(
       422,
       "SEAT_UNAVAILABLE",
       "One or more selected seats are not in this venue.",
+    );
+  if (
+    current.mode === "TARGET" &&
+    seatIds.some((id) => !current.targetSeatIds.includes(id))
+  )
+    throw new QueueRushRuleError(
+      422,
+      "TARGET_SEATS_ONLY",
+      "Target mode only allows the two assigned challenge seats.",
     );
   const previouslyHeld = new Set(current.heldSeatIds);
   if (
@@ -604,6 +655,7 @@ export function queueRushGameView(
     id: current.id,
     drop: current.drop,
     difficulty: current.difficulty,
+    mode: current.mode,
     stage: current.stage,
     serverNowMs: nowMs,
     queue: {
@@ -638,6 +690,7 @@ export function queueRushGameView(
           : Math.max(0, current.holdExpiresAtMs - nowMs),
     },
     seats,
+    targetSeatIds: current.targetSeatIds,
     botClaims: current.claimedSeatIds.length,
     selectedSeatIds: current.selectedSeatIds,
     outcome:

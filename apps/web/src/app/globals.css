@@ -688,6 +688,7 @@ select:focus-visible {
 .difficulty-picker label { display:flex; flex-direction:column; gap:6px; padding:14px; border:1px solid #334155; border-radius:14px; cursor:pointer; }
 .difficulty-picker label:has(input:checked) { border-color:#d7ff46; box-shadow:0 0 0 1px #d7ff46; }
 .difficulty-picker small { color:#a6b5c5; font-size:.75rem; }
+.mode-picker { grid-template-columns:repeat(2,minmax(0,1fr)); }
 .queue-status { max-width:800px; margin:34px auto; padding:clamp(24px,5vw,56px); }
 .queue-status h2,.seat-map-heading h2,.mock-payment h2 { font-size:clamp(1.6rem,4vw,2.6rem); }
 .queue-facts { display:flex; justify-content:space-between; gap:14px; flex-wrap:wrap; margin-top:20px; color:#a6b5c5; }

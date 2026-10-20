@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import type {
   QueueRushDifficulty,
+  QueueRushMode,
   QueueRushDrop,
 } from "@ticketsprint/contracts/queue-rush";
 import { queueApi } from "./queue-api";
@@ -14,6 +15,7 @@ export function EventDetailClient({ slug }: { slug: string }) {
   const router = useRouter();
   const [drop, setDrop] = useState<QueueRushDrop>();
   const [difficulty, setDifficulty] = useState<QueueRushDifficulty>("MEDIUM");
+  const [mode, setMode] = useState<QueueRushMode>("OPEN");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const { best } = useSessionBest();
@@ -36,7 +38,7 @@ export function EventDetailClient({ slug }: { slug: string }) {
     try {
       const v = await queueApi<{ game: { id: string } }>("/games", {
         method: "POST",
-        body: { dropSlug: slug, difficulty },
+        body: { dropSlug: slug, difficulty, mode },
       });
       router.push(`/practice/booking/${v.game.id}`);
     } catch (e) {
@@ -129,6 +131,25 @@ export function EventDetailClient({ slug }: { slug: string }) {
                     : d === "MEDIUM"
                       ? "Balanced queue and seat rush"
                       : "Fast queue · heavy competition"}
+                </small>
+              </label>
+            ))}
+          </fieldset>
+          <fieldset className="difficulty-picker mode-picker">
+            <legend>Seat challenge</legend>
+            {(["OPEN", "TARGET"] as const).map((choice) => (
+              <label key={choice}>
+                <input
+                  type="radio"
+                  name="mode"
+                  checked={mode === choice}
+                  onChange={() => setMode(choice)}
+                />
+                <strong>{choice === "OPEN" ? "Open seat choice" : "Target seats"}</strong>
+                <small>
+                  {choice === "OPEN"
+                    ? "Book any available seats, as before"
+                    : "Book the two assigned seats in the shown row to win"}
                 </small>
               </label>
             ))}

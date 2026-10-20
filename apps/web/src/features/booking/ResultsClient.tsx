@@ -36,7 +36,7 @@ export function ResultsClient({ attemptId }: { attemptId: string }) {
     try {
       const v = await queueApi<{ game: { id: string } }>("/games", {
         method: "POST",
-        body: { dropSlug: game.drop.slug, difficulty: game.difficulty },
+        body: { dropSlug: game.drop.slug, difficulty: game.difficulty, mode: game.mode },
       });
       router.push(`/practice/booking/${v.game.id}`);
     } catch (e) {
@@ -73,9 +73,11 @@ export function ResultsClient({ attemptId }: { attemptId: string }) {
           <p className="lede">
             {won
               ? "The server confirmed your mock checkout."
-              : game.failureReason === "INVENTORY_EXHAUSTED"
-                ? "Virtual inventory was exhausted by the competing buyers."
-                : "The server deadline expired before checkout completed."}
+                : game.failureReason === "INVENTORY_EXHAUSTED"
+                  ? "Virtual inventory was exhausted by the competing buyers."
+                  : game.failureReason === "TARGET_SEATS_CLAIMED"
+                    ? "A competing buyer claimed one of your assigned target seats."
+                    : "The server deadline expired before checkout completed."}
           </p>
         </div>
         <span className={`result-stamp ${won ? "result-won" : "result-lost"}`}>
@@ -116,6 +118,11 @@ export function ResultsClient({ attemptId }: { attemptId: string }) {
           </strong>
         </article>
       </section>
+      <p className="event-payment-note">
+        {game.mode === "TARGET"
+          ? `Target seats challenge · ${game.targetSeatIds.join(" · ")}`
+          : "Open seat choice"}
+      </p>
       {won && (
         <aside className="event-simulation-note" role="status">
           <p>

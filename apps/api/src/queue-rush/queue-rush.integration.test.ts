@@ -39,6 +39,23 @@ describe("Queue Rush HTTP flow", () => {
     expect(retry.body.game.stage).toBe("QUEUING");
     expect(retry.body.game.botClaims).toBe(0);
   });
+  it("creates a target-seat challenge while preserving open mode as the default", async () => {
+    const app = createQueueRushApp(
+      new QueueRushService({ now: () => 1000, seed: () => "target-mode" }),
+    );
+    const open = await request(app)
+      .post("/api/v1/games")
+      .send({ dropSlug: "stadium-opening", difficulty: "EASY" })
+      .expect(201);
+    expect(open.body.game.mode).toBe("OPEN");
+
+    const target = await request(app)
+      .post("/api/v1/games")
+      .send({ dropSlug: "stadium-opening", difficulty: "EASY", mode: "TARGET" })
+      .expect(201);
+    expect(target.body.game.mode).toBe("TARGET");
+    expect(target.body.game.targetSeatIds).toHaveLength(2);
+  });
   it("returns seats on hold expiry and rejects stale payment", async () => {
     let now = 1000;
     const app = createQueueRushApp(

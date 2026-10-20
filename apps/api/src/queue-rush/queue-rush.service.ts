@@ -3,6 +3,7 @@ import {
   queueRushGameSchema,
   type QueueRushDifficulty,
   type QueueRushGameView,
+  type QueueRushMode,
 } from "@ticketsprint/contracts/queue-rush";
 import {
   abandonQueueRushCheckout,
@@ -69,6 +70,7 @@ export class QueueRushService {
   create(input: {
     dropSlug: string;
     difficulty: QueueRushDifficulty;
+    mode: QueueRushMode;
   }): QueueRushGameView {
     const nowMs = this.now();
     this.cleanup(nowMs);
@@ -77,6 +79,7 @@ export class QueueRushService {
       id,
       dropSlug: input.dropSlug,
       difficulty: input.difficulty,
+      mode: input.mode,
       seed: this.seed(),
       nowMs,
     });

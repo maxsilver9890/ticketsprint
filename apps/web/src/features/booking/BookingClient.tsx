@@ -91,6 +91,57 @@ export function BookingClient({ sessionId }: { sessionId: string }) {
   const remaining = Math.max(0, endAt === null ? 0 : endAt - serverNowEstimate);
   const timerValue =
     game.stage === "QUEUING" ? game.queue.elapsedMs : remaining;
+  if (game.stage === "WON" || game.stage === "LOST") {
+    const won = game.stage === "WON";
+    return (
+      <main className="page-shell result-shell">
+        <header className="page-header result-header">
+          <div>
+            <p className="eyebrow">PRACTICE RESULT · {game.drop.title}</p>
+            <h1>{won ? "You got the seats." : "The rush got away."}</h1>
+            <p className="lede">
+              {won
+                ? "The server confirmed your mock checkout. No real payment was processed."
+                : game.failureReason === "INVENTORY_EXHAUSTED"
+                  ? "Virtual inventory was exhausted by the competing buyers."
+                  : game.failureReason === "TARGET_SEATS_CLAIMED"
+                    ? "A competing buyer claimed one of your assigned target seats."
+                  : "The server deadline expired before checkout completed."}
+            </p>
+          </div>
+          <span className={`result-stamp ${won ? "result-won" : "result-lost"}`}>
+            {won ? "WON" : "LOST"}
+          </span>
+        </header>
+        <section className="result-grid" aria-label="Run timings">
+          <article className="result-metric">
+            <span>Total time</span>
+            <strong>{game.timing.completionMs === null ? "—" : formatDuration(game.timing.completionMs)}</strong>
+          </article>
+          <article className="result-metric">
+            <span>Queue</span>
+            <strong>{game.timing.queueMs === null ? "—" : formatDuration(game.timing.queueMs)}</strong>
+          </article>
+          <article className="result-metric">
+            <span>Seat selection</span>
+            <strong>{game.timing.selectionMs === null ? "—" : formatDuration(game.timing.selectionMs)}</strong>
+          </article>
+          <article className="result-metric">
+            <span>Checkout</span>
+            <strong>{game.timing.checkoutMs === null ? "—" : formatDuration(game.timing.checkoutMs)}</strong>
+          </article>
+        </section>
+        {won && (
+          <aside className="event-simulation-note" role="status">
+            <p><strong>Mock payment approved.</strong> Virtual seats {game.selectedSeatIds.join(", ")} · no real tickets issued.</p>
+          </aside>
+        )}
+        <Link className="button button-primary" href={`/results/${sessionId}`}>
+          View full result
+        </Link>
+      </main>
+    );
+  }
   const toggle = (id: string) => {
     if (busy) return;
     const selected = game.selectedSeatIds;
@@ -204,6 +255,12 @@ export function BookingClient({ sessionId }: { sessionId: string }) {
                 held seats. Tap another available seat to add it, or tap your
                 held seat again to release it.
               </p>
+              {game.mode === "TARGET" && (
+                <p className="notice" role="status">
+                  Target challenge: book both assigned seats in this row — {game.targetSeatIds.join(" and ")}.
+                  Booking any other seat will not complete the challenge.
+                </p>
+              )}
             </div>
             <div className="seat-legend">
               <span>
@@ -248,6 +305,7 @@ export function BookingClient({ sessionId }: { sessionId: string }) {
                             disabled={
                               busy ||
                               game.stage === "CHECKOUT" ||
+                              (game.mode === "TARGET" && !game.targetSeatIds.includes(seat.id)) ||
                               (seat.state !== "AVAILABLE" && !chosen)
                             }
                             className={`seat-dot seat-${state}${chosen ? " seat-selected" : ""}`}
@@ -265,7 +323,12 @@ export function BookingClient({ sessionId }: { sessionId: string }) {
           {game.stage === "SEAT_SELECTION" && (
             <button
               className="button button-primary"
-              disabled={busy || game.selectedSeatIds.length === 0}
+              disabled={
+                busy ||
+                game.selectedSeatIds.length === 0 ||
+                (game.mode === "TARGET" &&
+                  game.targetSeatIds.some((id) => !game.selectedSeatIds.includes(id)))
+              }
               onClick={() =>
                 void action(`/games/${sessionId}/hold`, {
                   seatIds: game.selectedSeatIds,

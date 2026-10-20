@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export const queueRushDifficultySchema = z.enum(["EASY", "MEDIUM", "HARD"]);
+export const queueRushModeSchema = z.enum(["OPEN", "TARGET"]);
 export const queueRushStageSchema = z.enum([
   "QUEUING",
   "SEAT_SELECTION",
@@ -16,6 +17,7 @@ export const queueRushSeatStateSchema = z.enum([
 export const queueRushSaleStatusSchema = z.enum(["ON_SALE", "SOLD_OUT"]);
 export const queueRushFailureSchema = z.enum([
   "INVENTORY_EXHAUSTED",
+  "TARGET_SEATS_CLAIMED",
   "TIME_LIMIT",
 ]);
 
@@ -39,6 +41,7 @@ export const createQueueRushGameSchema = z
   .object({
     dropSlug: z.string().min(1).max(80),
     difficulty: queueRushDifficultySchema,
+    mode: queueRushModeSchema.default("OPEN"),
   })
   .strict();
 export const seatHoldRequestSchema = z
@@ -82,6 +85,7 @@ export const queueRushGameSchema = z
     id: z.uuid(),
     drop: queueRushDropSchema,
     difficulty: queueRushDifficultySchema,
+    mode: queueRushModeSchema,
     stage: queueRushStageSchema,
     serverNowMs: z.number().int().nonnegative(),
     queue: z
@@ -107,6 +111,7 @@ export const queueRushGameSchema = z
       })
       .strict(),
     seats: z.array(queueRushSeatSchema),
+    targetSeatIds: z.array(z.string()),
     botClaims: z.number().int().nonnegative(),
     selectedSeatIds: z.array(z.string()),
     outcome: z.enum(["WON", "LOST"]).nullable(),
@@ -117,6 +122,7 @@ export const queueRushGameSchema = z
   .strict();
 
 export type QueueRushDifficulty = z.infer<typeof queueRushDifficultySchema>;
+export type QueueRushMode = z.infer<typeof queueRushModeSchema>;
 export type QueueRushStage = z.infer<typeof queueRushStageSchema>;
 export type QueueRushDrop = z.infer<typeof queueRushDropSchema>;
 export type QueueRushGameView = z.infer<typeof queueRushGameSchema>;
